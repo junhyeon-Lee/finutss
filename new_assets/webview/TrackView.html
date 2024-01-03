@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Animate the camera along a path</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="./css/mapbox-gl.css" rel="stylesheet">
+    <script src="./js/mapbox-gl.js"></script>
+    <script src="./routes.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div id="test" style="position: absolute;">aaa</div>
+    <div id="item" style="display:none;">
+        <div class="temp_marker" style="width: 25px; height: 25px; background: #3BCCE1; border-radius: 13px; color: #fff; text-align: center; font-size:x-large; display: table-cell;
+        vertical-align: middle;">
+            S
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZmludXRzcyIsImEiOiJja3BvdjJwdWYwcHQ3Mm9udXo4M3Nod3YzIn0.OMVZjImaogKth_ApsJTlNg';
+        var map = new mapboxgl.Map({
+            container: 'map',
+            zoom: 10,
+            center: [126.91860707519491, 37.52506200640693],
+            // pitch: 50,
+            // bearing: 0,
+            // style: 'mapbox://styles/mapbox-map-design/ckhqrbxlc1awj19svtb92m0bd',
+            style: 'mapbox://styles/mapbox/light-v10',
+            // interactive: false
+        });
+
+        let markers = []
+
+        map.on('load', function () {
+
+        });
+
+        function setPath(value = "612345347c88f35fa478651c", type = "normal") {
+            console.log("value", value);
+            var elem = document.getElementById("test");
+            elem.innerHTML = JSON.stringify(value);
+            fetch("https://admin.finutss.com/server/track/" + value).then(
+                async (value) => {
+                    markers.map(item => {
+                        item.remove();
+                    });
+
+                    const result = await value.json();
+                    const future = result.geojson.features.find(item => item.geometry.type == "LineString");
+                    let sPoint, ePoint, path, ratio;
+                    if (type == "short") ratio = 0.25
+                    if (type == "half") ratio = 0.5
+                    if (type == "normal") ratio = 1
+
+                    sPoint = turf.along(future, turf.lineDistance(future) * 0.0);
+                    ePoint = turf.along(future, turf.lineDistance(future) * ratio);
+                    path = turf.lineSlice(sPoint, ePoint, future);
+
+                    drawPath(path);
+                    addStartEndMarker(sPoint, "START");
+                    addStartEndMarker(ePoint, "END");
+
+                    const coordinates = path.geometry.coordinates;
+
+                    // Create a 'LngLatBounds' with both corners at the first coordinate.
+                    const bounds = new mapboxgl.LngLatBounds(
+                        coordinates[0],
+                        coordinates[0]
+                    );
+                    // Extend the 'LngLatBounds' to include every coordinate in the bounds result.
+                    for (const coord of coordinates) {
+                        bounds.extend(coord);
+                    }
+
+                    map.fitBounds(bounds, {
+                        padding: 50,
+                        animate: false,
+                        // essential: true
+                    });
+                });
+
+
+        }
+        function drawPath(path) {
+
+            if (map.getSource('trace')) {
+                map.removeLayer("line");
+                map.removeSource('trace');
+            }
+
+            map.addSource('trace', {
+                type: 'geojson',
+                data: path
+            });
+
+            map.addLayer({
+                type: 'line',
+                source: 'trace',
+                id: 'line',
+                paint: {
+                    'line-color': '#f73a6b',
+                    'line-width': 1
+                },
+                layout: {
+                    'line-cap': 'round',
+                    'line-join': 'round',
+                }
+            });
+        }
+        function addStartEndMarker(feature, type) {
+            let imageUrl = type == "START" ? `url(./img/marker_start.png)` : `url(./img/marker_end.png)`;
+            const el = document.createElement('div');
+            el.className = 'marker';
+            el.style.backgroundImage = imageUrl;
+            el.style.width = `30px`;
+            el.style.height = `30px`;
+            el.style.backgroundSize = '100%';
+
+            el.addEventListener('click', () => {
+                window.alert(marker.properties.message);
+            });
+
+            const marker = new mapboxgl.Marker(el)
+                .setLngLat(feature.geometry.coordinates)
+                .addTo(map);
+            markers.push(marker);
+        }
+    </script>
+
+</body>
+
+</html>

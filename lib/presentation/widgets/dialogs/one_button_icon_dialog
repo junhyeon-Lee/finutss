@@ -1,0 +1,98 @@
+import 'package:finutss/constants.dart';
+import 'package:finutss/views/widgets/common_widgets/custom_button.dart';
+import 'package:finutss/views/widgets/common_widgets/custom_text.dart';
+import 'package:finutss/views/widgets/common_widgets/heading_widget.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:community_material_icon/community_material_icon.dart';
+import 'package:get/get.dart';
+
+// ignore: must_be_immutable
+class OneButtonIconDialog extends StatelessWidget {
+  String title, description, buttonText;
+  var onTap;
+  var icon;
+
+  Color confirmButtonColor;
+  double height;
+  OneButtonIconDialog(
+      {this.title,
+      this.description,
+      this.buttonText,
+      this.onTap,
+      this.height,
+      this.confirmButtonColor,
+      this.icon});
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.r)),
+      contentPadding: EdgeInsets.zero,
+      backgroundColor: Colors.white,
+      content: Container(
+          height: height,
+          width: 345,
+          child: Padding(
+            padding: EdgeInsets.all(17.r),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  size10,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Spacer(),
+                      headingWidget(title: title, size: 20.0),
+                      Spacer(),
+                      CircleAvatar(
+                        backgroundColor: backgroundSilverColor,
+                        child: IconButton(
+                            onPressed: () {
+                              Get.back();
+                            },
+                            
+                            icon: Icon(
+                              CommunityMaterialIcons.window_close,
+                              color: darkGreyColor,
+                            )),
+                      ),
+                    ],
+                  ),
+                  Icon(CommunityMaterialIcons.pencil_outline),
+                  customText(
+                    fontSize: MediaQuery.of(context).size.width * 0.035,
+                    fontWeight: FontWeight.w600,
+                    overflow: TextOverflow.visible,
+                    fontColor: whitishColor,
+                    height: 2,
+                    textAlign: TextAlign.center,
+                    text: description,
+                  ),
+                  size50,
+                  Padding(
+                    padding: EdgeInsets.only(left: 8.0.w, right: 8.w),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: customButton(
+                              onTapFunction: () {
+                                Get.back();
+                              },
+                              radius: 16,
+                              height: 48,
+                              text: buttonText,
+                              fontWeight: FontWeight.w700,
+                              textSize: 16,
+                              color: Color(0xFF3BCCE1)),
+                        ),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+          )),
+    );
+  }
+}

@@ -1,0 +1,570 @@
+<!-- 
+    setPath("612345b07c88f35fa47866fe");
+    setMyMarker({"image":"https://finutss.s3.ap-northeast-2.amazonaws.com/profile/Invalid%20date/20210927-085222-r6qwq.png?t=1632985781801"})
+    changeSpeed(20)
+ -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Animate the camera along a path</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="./css/mapbox-gl.css" rel="stylesheet">
+    <script src="./js/mapbox-gl.js"></script>
+    <script src="./routes.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <!-- <div style="position: absolute; z-index: 100; margin: 50; top: 50; left: 50;">
+        <button onclick="changeSpeed(1)">증가</button>
+        <button onclick="changeSpeed(-1)">감소</button>
+        <div id="ViewTimer"></div>
+        <div id="speed"></div>
+    </div> -->
+
+
+    <!-- <script src="https://docs.mapbox.com/mapbox-gl-js/assets/routes.js"></script> -->
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZmludXRzcyIsImEiOiJja3BvdjJwdWYwcHQ3Mm9udXo4M3Nod3YzIn0.OMVZjImaogKth_ApsJTlNg';
+        var map = new mapboxgl.Map({
+            container: 'map',
+            zoom: 20,
+            center: [126.91860707519491, 37.52506200640693],
+            pitch: 50,
+            // bearing: 0,
+            // style: 'mapbox://styles/mapbox-map-design/ckhqrbxlc1awj19svtb92m0bd',
+            style: 'mapbox://styles/finutss/ckx8kko1c51of14obluquad77',
+            // style: 'mapbox://styles/mapbox/light-v10',
+            // interactive: false
+        });
+
+        var targetRoute;
+        var cameraRoute;
+
+        map.on('load', function () {
+            map.addLayer(
+                {
+                    'id': 'add-3d-buildings',
+                    'source': 'composite',
+                    'source-layer': 'building',
+                    'filter': ['==', 'extrude', 'true'],
+                    'type': 'fill-extrusion',
+                    'minzoom': 15,
+                    'paint': {
+                        'fill-extrusion-color': '#aaa',
+
+                        // Use an 'interpolate' expression to
+                        // add a smooth transition effect to
+                        // the buildings as the user zooms in.
+                        'fill-extrusion-height': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10,
+                            0,
+                            15.05,
+                            ['get', 'height']
+                        ],
+                        'fill-extrusion-base': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            15,
+                            0,
+                            15.05,
+                            ['get', 'min_height']
+                        ],
+                        'fill-extrusion-opacity': 0.6
+                    }
+                },
+            );
+            // map.setFog({
+            //     'range': [-3, 20],
+            //     'color': 'rgba(255, 255, 255, 0.8)',
+            //     'horizon-blend': 0.8
+            // });
+            map.addSource('mapbox-dem', {
+                'type': 'raster-dem',
+                'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                'tileSize': 512,
+                'maxzoom': 14
+            });
+            map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 0.05 });
+            map.addLayer({
+                'id': 'sky',
+                'type': 'sky',
+                'paint': {
+                    'sky-type': 'atmosphere', //atmosphere
+                    'sky-atmosphere-sun': [161.23651729849414, 12.839854078029589],
+                    'sky-atmosphere-sun-intensity': 15
+                }
+            });
+            // map.addSource('trace', {
+            //     type: 'geojson',
+            //     data: targetRoute
+            // });
+            // map.addLayer({
+            //     type: 'line',
+            //     source: 'trace',
+            //     id: 'line',
+            //     paint: {
+            //         'line-color': '#f73a6b',
+            //         'line-width': 5,
+            //         'line-dasharray': [5, 2]
+            //     },
+            //     layout: {
+            //         'line-cap': 'round',
+            //         'line-join': 'round',
+            //     }
+            // });
+        });
+
+        // wait for the terrain and sky to load before starting animation
+        const init = () => {
+            setMapBox();
+        }
+        map.on('load', function () { });
+        var speed = 0;
+        var cameraAltitude = 10;
+        var distance = -0.050;
+        var pitch = 90;
+        var viewType = 0;
+
+        var beforeAnimationDuration = 50000;
+        var animationDuration = 50000;
+        var routeDistance;
+        var originAnimationDuration;
+        var alongRoute;
+        var targetRouteLineString;
+        var originTargetRouteLineString;
+        var start;
+        var originStart;
+        var beforeAlongRoute;
+        var beforeAlongRoute1;
+        var userImgUrl;
+
+        var phase = 0;
+        var phaseConfirmed = 0;
+        var phaseRemaining = 0;
+
+        function changeSpeed(value) {
+            console.log('changeSpeed', value);
+            if (targetRouteLineString) {
+                start = 0;
+                const lastPoint = turf.along(targetRouteLineString, turf.lineDistance(targetRouteLineString));
+                targetRouteLineString = turf.lineSlice(beforeAlongRoute, lastPoint, targetRouteLineString);
+                routeDistance = turf.lineDistance(targetRouteLineString);
+                beforeAlongRoute = 0;
+            }
+
+            beforeSeed = speed;
+            speed = value;
+            if (speed <= 0.1) speed = 0.1;
+            animationDuration = ((routeDistance) / speed) * 60 * 60 * 1000;
+
+            phaseConfirmed = phaseConfirmed + (phaseRemaining * phase);
+            phaseRemaining = 1 - phaseConfirmed;
+
+            // var msg = "현재 속도은 <font color='red'>" + speed + "km</font> 입니다.";
+            // document.all.speed.innerHTML = msg;		// div 영역에 보여줌 
+        }
+
+        function setUserImg(value) {
+            userImgUrl = value;
+        }
+
+        function setMapBox(value = 0) {
+            animationDuration += value;
+
+            // get the overall distance of each route so we can interpolate along them
+            targetRouteLineString = targetRoute;
+            routeDistance = turf.lineDistance(targetRouteLineString);
+            animationDuration = ((routeDistance) / speed) * 60 * 60 * 1000;
+
+            originTargetRouteLineString = targetRoute;
+            originRouteDistance = turf.lineDistance(originTargetRouteLineString);
+            // originAnimationDuration = ((originRouteDistance) / speed) * 60 * 60 * 1000;
+
+            var cameraRouteDistance = turf.lineDistance(cameraRoute);
+
+            beforeAnimationDuration = ((routeDistance) / speed) * 60 * 60 * 1000;
+
+
+            var beforeTime;
+            var diffTime = 0;
+            var updateCount = 0;
+
+            function frame(time) {
+                // 최대시간(animationDuration) : 시간(time)   = 변경된 최대시간(beforeAnimationDuration) : 시간(beforeTime)
+                if (!start) start = time;
+                if (!originStart) originStart = time;
+                beforeTime = time;
+
+                // phase determines how far through the animation we are
+                phase = (time - start) / animationDuration;
+
+                if (window.update) {
+                    if (updateCount % 20 == 0) {
+                        var RealPhase = phaseConfirmed + (phaseRemaining * phase);
+                        // var RealPhase = (time - originStart) / originAnimationDuration;
+                        var data = {
+                            'phase': truncationDecimal(RealPhase, 4),
+                            'duration': SetTime,
+                            'distance': truncationDecimal(((originRouteDistance * 1000) * RealPhase), 2),
+                            'kcal': truncationDecimal(((SetTime / 900) * 70 * 1.5), 2)
+                        }
+                        window.update.postMessage(JSON.stringify(data));
+                        updateCount = 0;
+                    }
+                    updateCount++;
+                }
+                // phase is normalized between 0 and 1
+                // when the animation is finished, reset start to loop the animation
+                if (phase > 1) {
+                    var data = {
+                        'phase': 1,
+                        'duration': SetTime,
+                        'distance': truncationDecimal(((originRouteDistance * 1000) * 1), 2),
+                        'kcal': truncationDecimal(((SetTime / 900) * 70 * 1.5), 2)
+                    }
+                    window.finish.postMessage(JSON.stringify(data));
+
+                    // wait 1.5 seconds before looping
+                    // setTimeout(function () {
+                    //     start = 0.0;
+                    //     originStart = 0.0;
+                    //     targetRouteLineString = turf.lineString(targetRoute);
+                    //     routeDistance = turf.lineDistance(targetRouteLineString);
+                    //     animationDuration = ((routeDistance) / speed) * 60 * 60 * 1000;
+                    //     beforeAnimationDuration = ((routeDistance) / speed) * 60 * 60 * 1000;
+                    //     setMapBox();
+                    // }, 1500);
+                    return;
+                }
+
+                // use the phase to get a point that is the appropriate distance along the route
+                // this approach syncs the camera and route positions ensuring they move
+                // at roughly equal rates even if they don't contain the same number of points
+                alongRoute = turf.along(
+                    targetRouteLineString,
+                    routeDistance * phase
+                ).geometry.coordinates;
+
+
+                var alongCamera = turf.along(
+                    cameraRoute,
+                    cameraRouteDistance * phase
+                ).geometry.coordinates;
+
+                var camera = map.getFreeCameraOptions();
+
+                if (beforeAlongRoute && (beforeAlongRoute !== alongRoute)) {
+                    var bearing = turf.bearing(turf.point(beforeAlongRoute), turf.point(alongRoute));
+                    // map.setBearing(bearing);
+                    var cameraPosition = turf.destination(turf.point(alongRoute), distance, bearing, { units: 'kilometers' }).geometry.coordinates;
+                    // var el = document.createElement('div');
+                    // el.style.border = '1px solid #000';
+                    // el.style.borderRadius = '25px';
+                    // // Add markers to the map.
+                    // new mapboxgl.Marker(el)
+                    //     .setLngLat(cameraPosition)
+                    //     .addTo(map);
+                    // set the position and altitude of the camera
+                    camera.position = mapboxgl.MercatorCoordinate.fromLngLat(
+                        {
+                            lng: cameraPosition[0],
+                            lat: cameraPosition[1]
+                        },
+                        cameraAltitude
+                    );
+
+                    // tell the camera to look at a point along the route
+                    camera.lookAtPoint({
+                        lng: alongRoute[0],
+                        lat: alongRoute[1]
+                    });
+                }
+                map.setFreeCameraOptions(camera);
+                if (myMarker) myMarker.setLngLat(alongRoute);
+                beforeAlongRoute = alongRoute;
+
+                window.requestAnimationFrame(frame);
+            }
+
+            window.requestAnimationFrame(frame);
+
+        }
+
+        const truncationDecimal = (value, length) => {
+            let decimal = 10;
+            for (let i = 0; i < length; i++) {
+                decimal = decimal * 10;
+            }
+            return Math.round(value * decimal) / decimal;
+        }
+        var SetTime = 0;		// 최초 설정 시간(기본 : 초)
+
+        function msg_time() {	// 1초씩 카운트
+
+            m = Math.floor(SetTime / 60) + "분 " + (SetTime % 60) + "초";	// 남은 시간 계산
+
+            // var msg = "현재 시간은 <font color='red'>" + m + "</font> 입니다.";
+
+            // document.all.ViewTimer.innerHTML = msg;		// div 영역에 보여줌 
+
+            SetTime++;					// 1초씩 감소
+        }
+
+        window.onload = function TimerStart() { tid = setInterval('msg_time()', 1000) };
+        let count = 0;
+        let count2 = 0;
+        function setUser(users) {
+            users.map(user => {
+                let userMarker = markers.find(item => item.id == user.id);
+                var borderColor = user.workoutType == "Riding" ? "#3BCCE1" : "#F73A6B";
+                if (userMarker == null) {
+                    var el = document.createElement('div');
+                    el.className = 'marker';
+                    el.style.backgroundImage = `url(${user.writer.image ? user.writer.image.url: "https://finutss.s3.ap-northeast-2.amazonaws.com/assets/finutss_default_profile.png"})`;
+                    el.style.width = 50 + 'px';
+                    el.style.height = 50 + 'px';
+                    el.style.border = `4px solid ${borderColor}`;
+                    el.style.borderRadius = '25px';
+                    el.style.backgroundRepeat= 'no-repeat';
+                    el.style.backgroundSize = 'cover';
+
+                    el.addEventListener('click', function () {
+                        window.alert(marker.properties.message);
+                    });
+                    marker = new mapboxgl.Marker(el)
+                        .setLngLat([0, 0])
+                        .addTo(map);
+                    // Add markers to the map.
+                    userMarker = { marker: marker, id: user.id };
+                    markers.push(userMarker);
+
+                }
+                //봇용
+                // var phase = user.phase + (0.0006 * count++)
+
+                var phase = user.phase;
+                const alongRoute = turf.along(
+                    originTargetRouteLineString,
+                    originRouteDistance * (phase % 1)
+                ).geometry.coordinates;
+                userMarker.marker.setLngLat(alongRoute);
+            })
+            // console.log("users",JSON.stringify(users));
+            // var phase = users[0].phase + (0.0006 * count++)
+            // const alongRoute = turf.along(
+            //     originTargetRouteLineString,
+            //     originRouteDistance * (phase % 1)
+            // ).geometry.coordinates;
+
+            // if (markers[1]) markers[1].setLngLat(alongRoute);
+
+            // var phase2 = users[1].phase + (0.001 * count2++)
+            // const alongRoute2 = turf.along(
+            //     originTargetRouteLineString,
+            //     originRouteDistance * (phase2 % 1)
+            // ).geometry.coordinates;
+
+            // if (markers[2]) markers[2].setLngLat(alongRoute2);
+        }
+
+        let myMarker = null;
+        var markers = [];
+        function setMyMarker(userInfo) {
+            console.log('setMyMarker', JSON.stringify(userInfo));
+            if (myMarker != null) return;
+            var borderColor = userInfo.type == "Riding" ? "#3BCCE1" : "#F73A6B";
+            // Create a DOM element for each marker.
+            var el = document.createElement('div');
+            el.className = 'marker';
+            el.style.backgroundImage = `url(${userInfo.image})`;
+            el.style.width = '50px';
+            el.style.height = '50px';
+            el.style.border = `4px solid ${borderColor}`;
+            el.style.borderRadius = '25px';
+            el.style.backgroundRepeat= 'no-repeat';
+            el.style.backgroundSize = '50px 50px';
+            el.style.zIndex = '999';
+
+            el.addEventListener('click', function () {
+                if(viewType % 3 == 0) {
+                    cameraAltitude = 500;
+                    distance = -1.0;
+                }else if(viewType % 3 == 1) {
+                    cameraAltitude = 10;
+                    distance = -0.050;
+                }else if(viewType % 3 == 2) {
+                    cameraAltitude = 50;
+                    distance = -0.15;
+                }
+                console.log('viewType',viewType)
+                viewType = viewType + 1;
+                console.log('viewType',viewType)
+            });
+
+            // Add markers to the map.
+            myMarker = new mapboxgl.Marker(el)
+                .setLngLat([0, 0])
+                .addTo(map);
+        }
+
+        function makeMarker(targetMarker) {
+            console.log('make marker');
+            // Create a DOM element for each marker.
+            var el = document.createElement('div');
+            el.className = 'marker';
+            el.style.backgroundImage = userImgUrl;
+            el.style.width = '50px';
+            el.style.height = '50px';
+            el.style.border = '4px solid #aef73a';
+            el.style.borderRadius = '25px';
+            el.style.backgroundSize = '100%';
+
+            el.addEventListener('click', function () {
+                window.alert("hello");
+            });
+
+            // Add markers to the map.
+            markers.push(new mapboxgl.Marker(el)
+                .setLngLat([126.91860707519491, 37.52506200640693])
+                .addTo(map));
+        }
+        function sleep(ms) {
+            ts1 = new Date().getTime() + ms;
+            do ts2 = new Date().getTime(); while (ts2 < ts1);
+        }
+
+        function setPath(value = "612345347c88f35fa478651c", type = "normal") {
+            fetch("https://admin.finutss.com/server/track/" + value).then(
+                async (value) => {
+                    markers.map(item => {
+                        item.remove();
+                    });
+
+                    const result = await value.json();
+                    const future = result.geojson.features.find(item => item.geometry.type == "LineString");
+                    let sPoint, ePoint, path, ratio;
+                    if (type == "short") ratio = 0.25
+                    if (type == "half") ratio = 0.5
+                    if (type == "normal") ratio = 1
+
+                    sPoint = turf.along(future, turf.lineDistance(future) * 0.0);
+                    ePoint = turf.along(future, turf.lineDistance(future) * ratio);
+                    path = turf.lineSlice(sPoint, ePoint, future);
+
+                    drawPath(path);
+                    addStartEndMarker(sPoint, "START");
+                    addStartEndMarker(ePoint, "END");
+                    const coordinates = path.geometry.coordinates;
+
+                    // Create a 'LngLatBounds' with both corners at the first coordinate.
+                    const bounds = new mapboxgl.LngLatBounds(
+                        coordinates[0],
+                        coordinates[0]
+                    );
+                    // Extend the 'LngLatBounds' to include every coordinate in the bounds result.
+                    for (const coord of coordinates) {
+                        bounds.extend(coord);
+                    }
+
+                    map.fitBounds(bounds, {
+                        padding: 50,
+                        animate: false,
+                        // essential: true
+                    });
+
+                    setTimeout(()=>init(),1500)
+                    
+                });
+        }
+
+        function drawPath(path) {
+            targetRoute = path;
+            cameraRoute = path;
+            if (map.getSource('trace')) {
+                map.removeLayer("line");
+                map.removeSource('trace');
+            }
+
+            map.addSource('trace', {
+                type: 'geojson',
+                data: path,
+                lineMetrics: true
+            });
+
+            map.addLayer({
+                type: 'line',
+                source: 'trace',
+                id: 'line',
+                paint: {
+                    'line-color': '#f73a6b',
+                    'line-width': 14,
+                    'line-gradient': [
+                        'interpolate',
+                        ['linear'],
+                        ['line-progress'],
+                        0,
+                        'blue',
+                        0.1,
+                        'royalblue',
+                        0.3,
+                        'cyan',
+                        0.5,
+                        'lime',
+                        0.7,
+                        'yellow',
+                        1,
+                        'red'
+                    ]
+
+                },
+                layout: {
+                    'line-cap': 'round',
+                    'line-join': 'round',
+                }
+            });
+        }
+        function addStartEndMarker(feature, type) {
+            let imageUrl = type == "START" ? `url(./img/marker_start.png)` : `url(./img/marker_end.png)`;
+            const el = document.createElement('div');
+            el.className = 'marker';
+            el.style.backgroundImage = imageUrl;
+            el.style.width = `30px`;
+            el.style.height = `30px`;
+            el.style.backgroundSize = '100%';
+
+            el.addEventListener('click', () => {
+                window.alert(marker.properties.message);
+            });
+
+            const marker = new mapboxgl.Marker(el)
+                .setLngLat(feature.geometry.coordinates)
+                .addTo(map);
+            markers.push(marker);
+        }
+
+    </script>
+
+</body>
+
+</html>

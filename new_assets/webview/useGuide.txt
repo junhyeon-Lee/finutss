@@ -1,0 +1,12 @@
+    1. 개발자 모드를 활성화 합니다. 
+    2. 콘솔에 아래의 명령어를 입력합니다. 
+    3. 첫번쨰 라인은 트랙을 입력할수 있습니다. 관리자 툴에서 해당 트랙의 ID를 확인할수 있습니다. 
+    https://admin.finutss.com/Track
+    
+    4. 두번쨰 라인은 이미지를 넣을수 있습니다. 
+    5. 세번쨰 라인은 속도를 변경할수 있습니다. (수시로 업데이트 가능합니다.)
+    6. 재시작시에는 새로고침을 한후에 아래의 명령어를 입력하면됩니다. 
+        
+    setPath("61b99952b190256541814a60");
+    setMyMarker({"image":"https://finutss.s3.ap-northeast-2.amazonaws.com/profile/Invalid%20date/20210927-085222-r6qwq.png?t=1632985781801"})
+    changeSpeed(100)

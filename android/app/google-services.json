@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "863785678740",
+    "project_id": "finutss",
+    "storage_bucket": "finutss.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:863785678740:android:0568616a4f075a35928181",
+        "android_client_info": {
+          "package_name": "com.finutss.metatrack.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "863785678740-5ltgkln08m24d2upctvsa0ds872bquil.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClKcS5ONMKqYfhHv3xpIwhf3s-NIa36RQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "863785678740-5ltgkln08m24d2upctvsa0ds872bquil.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:863785678740:android:61bab7c3b02f06c6928181",
+        "android_client_info": {
+          "package_name": "io.flutter.plugins.firebase.messaging.example"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "863785678740-5ltgkln08m24d2upctvsa0ds872bquil.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClKcS5ONMKqYfhHv3xpIwhf3s-NIa36RQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "863785678740-5ltgkln08m24d2upctvsa0ds872bquil.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
