@@ -1,4 +1,4 @@
-# Finutss
+Finutss
 
 센서연동 홈트레이닝 어플리케이션 Finutss
 
